@@ -1,17 +1,19 @@
 #!/usr/bin/perl
 
-## Attention! If you don't have the JSON package installed, install it using:
+## Attention! If you don't have the JSON package installed, you may install it using:
 # perl -MCPAN -e 'install JSON'
+# Same applies to LWP::Protocol::https, if needed.
 
 use LWP::UserAgent;
 use JSON;
 
+# Just convenience for true and false.
 my $true = 1, $false = 0;
 
-my $debug = $true,
+my $debug = $false, # If true, will process just first page of each repo.
    $base_url = "https://api.github.com/repos",
-   $base_repo = "Saltarelle/SaltarelleCompiler",
-   $compare_repo = "bridgedotnet/Bridge";
+   $base_repo = "Saltarelle/SaltarelleCompiler", #repo with the wanted stargazers.
+   $compare_repo = "bridgedotnet/Bridge"; # repo to look for gazers in common
 
 sub fetch_for {
  my $repo = shift,
@@ -68,7 +70,10 @@ sub fetch_for {
    return;
   }
 
-  #$next_page = 0;
+  # Force one page only if debugging.
+  if ($debug) {
+   $next_page = 0;
+  }
  }
  close(FILEHANDLE);
 
@@ -79,7 +84,7 @@ local $|=1; # Flush stdout in realtime
 
 my @base_entries = fetch_for($base_repo, "saltarelle-gazers.txt"),
    @compare_entries = fetch_for($compare_repo, "bridge-gazers.txt"),
-   @unique_entries, $unique_count = 0;
+   @unique_entries, @common_entries, $unique_count = 0;
 
 print("Comparing user IDs on both lists: ");
 foreach my $ref_entry (@base_entries) {
@@ -93,7 +98,9 @@ foreach my $ref_entry (@base_entries) {
    last;
   }
  }
- if (not $match) {
+ if ($match) {
+  push(@common_entries, $ref_entry);
+ } else {
   #print("Adding ".$ref_entry->{login}."/".$ref_id." as unique entry.\n");
   push(@unique_entries, $ref_entry);
   $unique_count++;
@@ -116,8 +123,25 @@ if ($unique_count < 1) {
    $entry->{organizations_url}.", ".$entry->{repos_url}.", ".$entry->{events_url}.", ".
    $entry->{received_events_url}.", ".$entry->{type}.", ".$entry->{site_admin}."\n";
  }
- close(CSVHANDLE);
  print(scalar(@unique_entries)." unique users out of a total of ".scalar(@base_entries)." star gazers on ".$base_repo."\n");
- print("Saved listing to 'unique_users.csv'.\n");
+ close(CSVHANDLE);
+ print("Saved unique users listing to 'unique_users.csv'.\n");
+}
+
+if (scalar(@common_entries) gt 0) {
+ # FIXME: Turn this into a sub as the same code is used above -- just for different array and file.
+ open(CSVHANDLE, ">common_users.csv");
+ print CSVHANDLE "login, id, avatar_url, gravatar_id, url, html_url, followers_url, following_url, gists_url, ".
+  "starred_url, subscriptions_url, organizations_url, repos_url, events_url, received_events_url, type, site_admin\n";
+ foreach my $entry (@common_entries) {
+  print("User: ".$entry->{login}."\n");
+  print CSVHANDLE $entry->{login}.", ".$entry->{id}.", ".$entry->{avatar_url}.", ".$entry->{gravatar_id}.", ".
+   $entry->{url}.", ".$entry->{html_url}.", ".$entry->{followers_url}.", ".$entry->{following_url}.", ".
+   $entry->{gists_url}.", ".$entry->{starred_url}.", ".$entry->{subscriptions_url}.", ".
+   $entry->{organizations_url}.", ".$entry->{repos_url}.", ".$entry->{events_url}.", ".
+   $entry->{received_events_url}.", ".$entry->{type}.", ".$entry->{site_admin}."\n";
+ }
+ close(CSVHANDLE);
+ print("Saved listing of users in common between the two repos to 'common_users.csv'.\n");
 }
 print("\nDone listing.\n");
