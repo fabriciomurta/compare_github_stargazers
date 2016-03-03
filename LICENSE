@@ -22,3 +22,8 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 
 For more information, please refer to <http://unlicense.org>
+
+The JSON and LWP::Protocol::https PERL modules are distributed and
+subject to their respective licenses:
+- [JSON Perl Module copyright and license](http://search.cpan.org/~makamaka/JSON-2.90/lib/JSON.pm#COPYRIGHT_AND_LICENSE)
+- [LWP::Protocol::https copyright](http://search.cpan.org/~mschilli/LWP-Protocol-https-6.06/lib/LWP/Protocol/https.pm#COPYRIGHT)
