@@ -20,7 +20,7 @@ sub fetch_for {
     $outfile = shift,
     $next_page = 1,
     $ua = LWP::UserAgent->new(('ssl_opts' => { 'verify_hostname' => $false })),
-    @entries = ();
+    @entries = (), @ids = ();
 
  # Must declare on a second command line or else $repo don't get replaced correctly
  my $url = $base_url."/".$repo."/stargazers";
@@ -58,7 +58,11 @@ sub fetch_for {
    my @page_entries = @{decode_json($response->decoded_content())};
    
    foreach my $entry (@page_entries) {
-    push(@entries, $entry);
+    # Do not add an already existing entry again to the array.
+    if (not value_exists(\@ids,$entry->{id})) {
+     push(@ids, $entry->{id});
+     push(@entries, $entry);
+    }
    }
    
    print("next page: ".$next_page."\nremaining queries: ".$ratelim_remain.
@@ -80,6 +84,17 @@ sub fetch_for {
  return @entries;
 }
 
+sub value_exists() {
+ my $array_ref = shift,
+    $value = shift;
+
+ foreach my $entry (@$array_ref) {
+  if ($entry eq $value) { # valid for numbers only!
+   return $true;
+  }
+ }
+ return $false;
+}
 local $|=1; # Flush stdout in realtime
 
 my @base_entries = fetch_for($base_repo, "saltarelle-gazers.txt"),
@@ -113,15 +128,15 @@ if ($unique_count < 1) {
  print("No unique entries.\n");
 } else {
  open(CSVHANDLE, ">unique_users.csv");
- print CSVHANDLE "login, id, avatar_url, gravatar_id, url, html_url, followers_url, following_url, gists_url, ".
-  "starred_url, subscriptions_url, organizations_url, repos_url, events_url, received_events_url, type, site_admin\n";
+ print CSVHANDLE "login,id,avatar_url,gravatar_id,url,html_url,followers_url,following_url,gists_url,".
+  "starred_url,subscriptions_url,organizations_url,repos_url,events_url,received_events_url,type,site_admin\n";
  foreach my $entry (@unique_entries) {
-  print("User: ".$entry->{login}."\n");
-  print CSVHANDLE $entry->{login}.", ".$entry->{id}.", ".$entry->{avatar_url}.", ".$entry->{gravatar_id}.", ".
-   $entry->{url}.", ".$entry->{html_url}.", ".$entry->{followers_url}.", ".$entry->{following_url}.", ".
-   $entry->{gists_url}.", ".$entry->{starred_url}.", ".$entry->{subscriptions_url}.", ".
-   $entry->{organizations_url}.", ".$entry->{repos_url}.", ".$entry->{events_url}.", ".
-   $entry->{received_events_url}.", ".$entry->{type}.", ".$entry->{site_admin}."\n";
+  print("Unique user: ".$entry->{login}."\n");
+  print CSVHANDLE $entry->{login}.",".$entry->{id}.",".$entry->{avatar_url}.",".$entry->{gravatar_id}.",".
+   $entry->{url}.",".$entry->{html_url}.",".$entry->{followers_url}.",".$entry->{following_url}.",".
+   $entry->{gists_url}.",".$entry->{starred_url}.",".$entry->{subscriptions_url}.",".
+   $entry->{organizations_url}.",".$entry->{repos_url}.",".$entry->{events_url}.",".
+   $entry->{received_events_url}.",".$entry->{type}.",".$entry->{site_admin}."\n";
  }
  print(scalar(@unique_entries)." unique users out of a total of ".scalar(@base_entries)." star gazers on ".$base_repo."\n");
  close(CSVHANDLE);
@@ -129,18 +144,20 @@ if ($unique_count < 1) {
 }
 
 if (scalar(@common_entries) gt 0) {
+ print("\nUsers in common between both repos:\n");
  # FIXME: Turn this into a sub as the same code is used above -- just for different array and file.
  open(CSVHANDLE, ">common_users.csv");
- print CSVHANDLE "login, id, avatar_url, gravatar_id, url, html_url, followers_url, following_url, gists_url, ".
-  "starred_url, subscriptions_url, organizations_url, repos_url, events_url, received_events_url, type, site_admin\n";
+ print CSVHANDLE "login,id,avatar_url,gravatar_id,url,html_url,followers_url,following_url,gists_url,".
+  "starred_url,subscriptions_url,organizations_url,repos_url,events_url,received_events_url,type,site_admin\n";
  foreach my $entry (@common_entries) {
-  print("User: ".$entry->{login}."\n");
-  print CSVHANDLE $entry->{login}.", ".$entry->{id}.", ".$entry->{avatar_url}.", ".$entry->{gravatar_id}.", ".
-   $entry->{url}.", ".$entry->{html_url}.", ".$entry->{followers_url}.", ".$entry->{following_url}.", ".
-   $entry->{gists_url}.", ".$entry->{starred_url}.", ".$entry->{subscriptions_url}.", ".
-   $entry->{organizations_url}.", ".$entry->{repos_url}.", ".$entry->{events_url}.", ".
-   $entry->{received_events_url}.", ".$entry->{type}.", ".$entry->{site_admin}."\n";
+  print("Common user: ".$entry->{login}."\n");
+  print CSVHANDLE $entry->{login}.",".$entry->{id}.",".$entry->{avatar_url}.",".$entry->{gravatar_id}.",".
+   $entry->{url}.",".$entry->{html_url}.",".$entry->{followers_url}.",".$entry->{following_url}.",".
+   $entry->{gists_url}.",".$entry->{starred_url}.",".$entry->{subscriptions_url}.",".
+   $entry->{organizations_url}.",".$entry->{repos_url}.",".$entry->{events_url}.",".
+   $entry->{received_events_url}.",".$entry->{type}.",".$entry->{site_admin}."\n";
  }
+ print(scalar(@common_entries)." users in common out of a total of ".scalar(@base_entries)." star gazers on ".$base_repo."\n");
  close(CSVHANDLE);
  print("Saved listing of users in common between the two repos to 'common_users.csv'.\n");
 }
